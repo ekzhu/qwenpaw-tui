@@ -270,33 +270,6 @@ class AcpTransport:
             model=_current_model(new_session),
         )
 
-    async def new_session(self) -> Connected:
-        if self._conn is None:
-            raise RuntimeError("transport not started")
-        # End any in-flight work and free a blocked permission so the old
-        # session unwinds cleanly before we switch.
-        self._client.cancel_pending()
-        if self._prompt_task is not None and not self._prompt_task.done():
-            self._prompt_task.cancel()
-            try:
-                await self._prompt_task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                pass
-        old = self._session_id
-        new_session = await self._conn.new_session(cwd=self._cwd)
-        self._session_id = new_session.session_id
-        # Release the old session's resources on the agent side.
-        if old and old != self._session_id:
-            try:
-                await self._conn.close_session(session_id=old)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("close old session failed: %s", exc)
-        return Connected(
-            session_id=self._session_id,
-            agent=_session_agent(new_session) or self._agent,
-            model=_current_model(new_session),
-        )
-
     async def send(self, text: str) -> None:
         if self._conn is None or self._session_id is None:
             raise RuntimeError("transport not started")

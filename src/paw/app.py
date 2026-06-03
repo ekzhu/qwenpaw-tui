@@ -186,17 +186,7 @@ class PawApp(App):
         await self._submit(text)
 
     async def _submit(self, text: str) -> None:
-        """Deliver one user turn (or run ``/new``) now."""
-        # ``/new`` starts a brand-new conversation. Handle it client-side so
-        # the session id (status bar + terminal title) actually changes — the
-        # agent's own ``/new`` only clears context within the same session.
-        if text.split()[0].lower() == "/new":
-            await self._mount(UserMessage(text))
-            await self._start_new_session()
-            # ``/new`` isn't a turn (no TurnEnded), so pull the next queued
-            # message ourselves.
-            await self._drain_queue()
-            return
+        """Deliver one user turn now."""
         await self._mount(UserMessage(text))
         # Reset per-turn lane state so a fresh assistant bubble (and a single
         # new "qwenpaw" label) is created for the reply.
@@ -220,35 +210,6 @@ class PawApp(App):
         text, widget = self._queued.pop(0)
         widget.remove()
         await self._submit(text)
-
-    async def _start_new_session(self) -> None:
-        """Open a fresh session and reset all per-session UI state."""
-        try:
-            connected = await self._transport.new_session()
-        except Exception as exc:  # noqa: BLE001
-            await self._mount(
-                ErrorMessage(f"could not start a new session: {exc}")
-            )
-            return
-        # Updates the status bar session id and the terminal title.
-        self._on_connected(connected)
-        # Reset per-turn lane state and the session token totals — they
-        # belonged to the conversation we just left.
-        self._assistant = None
-        self._thought = None
-        self._labeled = False
-        self._tools.clear()
-        self._file_links_seen.clear()
-        self._tok_in = 0
-        self._tok_out = 0
-        self._stream_chars = 0
-        self._status().set(used=0, size=0)
-        self._refresh_tokens()
-        await self._mount(
-            PushMessageBox(
-                f"Started a new session ({str(connected.session_id)[:8]})."
-            )
-        )
 
     # -- actions -------------------------------------------------------------
     async def action_interrupt(self) -> None:

@@ -21,15 +21,6 @@ class TuiTransport(Protocol):
         """Connect / spawn the agent and open a session."""
         ...
 
-    async def new_session(self) -> Connected:
-        """Start a fresh conversation, returning the new session info.
-
-        Unlike the agent's own ``/new`` (which clears context but keeps the
-        same session), this opens a brand-new session so the session id the
-        UI shows actually changes.
-        """
-        ...
-
     async def send(self, text: str) -> None:
         """Send a user turn (plain text). Returns once the turn is queued."""
         ...

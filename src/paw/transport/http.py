@@ -122,26 +122,6 @@ class HttpTransport:
         except Exception as exc:  # noqa: BLE001
             logger.debug("chat create failed (non-fatal): %s", exc)
 
-    async def new_session(self) -> Connected:
-        if self._client is None:
-            raise RuntimeError("transport not started")
-        # Stop any in-flight turn / approval polling for the old session.
-        if self._turn_task is not None and not self._turn_task.done():
-            self._turn_task.cancel()
-            try:
-                await self._turn_task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                pass
-        self._stop_poll()
-        self._pending.clear()
-        # A fresh session id (and chat) so the server starts anew.
-        self._session_id = f"paw:{uuid.uuid4().hex[:12]}"
-        self._chat_id = None
-        await self._create_chat()
-        return Connected(
-            session_id=self._session_id, agent=self._agent, model=None
-        )
-
     async def send(self, text: str) -> None:
         if self._client is None:
             raise RuntimeError("transport not started")

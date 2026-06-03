@@ -130,28 +130,6 @@ async def test_interrupt_cancels_turn():
     assert isinstance(events[-1], TurnEnded)
 
 
-@pytest.mark.asyncio
-async def test_new_session_opens_fresh_id():
-    transport = _transport()
-    try:
-        connected = await asyncio.wait_for(transport.start(), timeout=10.0)
-        assert connected.session_id == "sess-1"
-
-        again = await asyncio.wait_for(transport.new_session(), timeout=10.0)
-        assert isinstance(again, Connected)
-        # A genuinely new session id (agent-side /new would keep "sess-1").
-        assert again.session_id == "sess-2"
-        assert transport.session_id == "sess-2"
-
-        # The new session is live: a turn still streams normally.
-        await transport.send("hi there")
-        events = await _collect_turn(transport)
-        text = "".join(e.text for e in events if isinstance(e, TextDelta))
-        assert text == "Hello world"
-    finally:
-        await transport.close()
-
-
 def test_session_agent_reads_meta():
     from types import SimpleNamespace
 

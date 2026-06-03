@@ -44,20 +44,11 @@ class FakeTransport:
         self.interrupted = False
         self.resolved: list[tuple[str, str | None]] = []
         self.closed = False
-        self.new_sessions = 0
         self._permission_mode = "none"
 
     async def start(self) -> Connected:
         return Connected(
             session_id="sess-abc", agent="default", model="qwen-max"
-        )
-
-    async def new_session(self) -> Connected:
-        self.new_sessions += 1
-        return Connected(
-            session_id=f"sess-new{self.new_sessions}",
-            agent="default",
-            model="qwen-max",
         )
 
     async def send(self, text: str) -> None:
@@ -583,29 +574,4 @@ async def test_up_recalls_queued_message_to_edit():
         assert prompt.value == "draft to fix"
         assert app._queued == []
         assert len(list(app.query(QueuedMessage))) == 0
-        assert transport.sent == []
-
-
-@pytest.mark.asyncio
-async def test_new_command_opens_fresh_session():
-    transport = FakeTransport()
-    app = PawApp(transport)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        bar = app.query_one("StatusBar")
-        assert "sess-abc" in bar.summary
-
-        prompt = app.query_one("#prompt")
-        prompt.value = "/new"
-        await pilot.press("enter")
-        for _ in range(10):
-            await pilot.pause()
-            if transport.new_sessions:
-                break
-
-        # A new session was opened and the status bar id changed.
-        assert transport.new_sessions == 1
-        assert "sess-new" in bar.summary
-        assert "sess-abc" not in bar.summary
-        # `/new` is handled client-side, not forwarded to the agent.
         assert transport.sent == []
