@@ -9,7 +9,16 @@ from textual.widgets import Static
 # Public field name -> internal attribute. Internal names are namespaced with
 # ``_sb_`` so they never clash with Textual ``Widget`` internals (``_size``,
 # ``size``, ``region`` ...).
-_FIELDS = ("agent", "model", "session", "used", "size", "state")
+_FIELDS = (
+    "agent",
+    "model",
+    "session",
+    "used",
+    "size",
+    "tok_in",
+    "tok_out",
+    "state",
+)
 
 
 class StatusBar(Static):
@@ -21,6 +30,8 @@ class StatusBar(Static):
         self._sb_session = "—"
         self._sb_used = 0
         self._sb_size = 0
+        self._sb_tok_in = 0
+        self._sb_tok_out = 0
         self._sb_state = "connecting"
         # Pass an initial renderable so the first arrange has a valid visual.
         super().__init__(self._compose_line(), classes="statusbar")
@@ -57,6 +68,10 @@ class StatusBar(Static):
             if self._sb_size:
                 tokens += f"/{self._sb_size:,}"
             line.append(f"  tokens:{tokens}", style="#8a8a8a")
+        if self._sb_tok_in or self._sb_tok_out:
+            line.append("  tok ", style="#8a8a8a")
+            line.append(f"↑{self._sb_tok_in:,}", style="#7fb7d9")
+            line.append(f" ↓{self._sb_tok_out:,}", style="#6dff9d")
         line.append("   ", style="")
         line.append(f"⏺ {self._sb_state}", style=f"bold {state_color}")
         return line

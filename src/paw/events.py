@@ -69,6 +69,19 @@ class Usage:
 
 
 @dataclass(frozen=True)
+class TokenUsage:
+    """Incremental token counts from one LLM call.
+
+    QwenPaw reports usage per LLM invocation, so the UI sums these to show
+    the running input/output totals for the session.
+    """
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+
+
+@dataclass(frozen=True)
 class PermissionOption:
     option_id: str
     name: str
@@ -129,6 +142,7 @@ TuiEvent = (
     | ToolCall
     | PlanUpdate
     | Usage
+    | TokenUsage
     | PermissionRequest
     | AvailableCommands
     | PushMessage

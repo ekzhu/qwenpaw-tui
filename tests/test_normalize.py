@@ -46,9 +46,26 @@ def test_message_chunk_with_unrelated_meta_is_text():
     chunk = AgentMessageChunk(
         sessionUpdate="agent_message_chunk",
         content=text_block("hello"),
-        field_meta={"usage": 42},
+        field_meta={"other": 42},
     )
     assert normalize_update(chunk) == [E.TextDelta("hello")]
+
+
+def test_usage_meta_chunk_is_token_usage():
+    chunk = AgentMessageChunk(
+        sessionUpdate="agent_message_chunk",
+        content=text_block(""),
+        field_meta={
+            "usage": {
+                "inputTokens": 1200,
+                "outputTokens": 340,
+                "totalTokens": 1540,
+            }
+        },
+    )
+    assert normalize_update(chunk) == [
+        E.TokenUsage(input_tokens=1200, output_tokens=340, total_tokens=1540)
+    ]
 
 
 def test_thought_chunk():

@@ -17,6 +17,7 @@ from .events import (
     PushMessage,
     TextDelta,
     ThoughtDelta,
+    TokenUsage,
     ToolCall,
     TransportError,
     TurnEnded,
@@ -87,6 +88,9 @@ class PawApp(App):
         self._tools: dict[str, ToolPanel] = {}
         self._tools_hidden = False
         self._busy = False
+        # Running token totals for the session (summed across LLM calls).
+        self._tok_in = 0
+        self._tok_out = 0
         self._suggester = CommandSuggester()
         self._menu = CommandMenu()
 
@@ -241,6 +245,11 @@ class PawApp(App):
 
         elif isinstance(event, Usage):
             self._status().set(used=event.used, size=event.size)
+
+        elif isinstance(event, TokenUsage):
+            self._tok_in += event.input_tokens
+            self._tok_out += event.output_tokens
+            self._status().set(tok_in=self._tok_in, tok_out=self._tok_out)
 
         elif isinstance(event, PlanUpdate):
             # Render the plan inline as a thought-style summary for now.

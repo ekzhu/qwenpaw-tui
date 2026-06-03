@@ -24,6 +24,7 @@ from .events import (
     SlashCommand,
     TextDelta,
     ThoughtDelta,
+    TokenUsage,
     ToolCall,
     TransportError,
     TuiEvent,
@@ -96,13 +97,24 @@ def normalize_update(update: Any) -> list[TuiEvent]:
     kind = getattr(update, "session_update", None)
 
     if kind == "agent_message_chunk":
+        meta = getattr(update, "field_meta", None)
+        # QwenPaw reports per-call token usage as an (otherwise empty)
+        # message chunk tagged with ``_meta.usage`` (inputTokens / etc.).
+        if isinstance(meta, dict) and isinstance(meta.get("usage"), dict):
+            u = meta["usage"]
+            return [
+                TokenUsage(
+                    input_tokens=int(u.get("inputTokens", 0) or 0),
+                    output_tokens=int(u.get("outputTokens", 0) or 0),
+                    total_tokens=int(u.get("totalTokens", 0) or 0),
+                )
+            ]
         text = _block_text(getattr(update, "content", None))
         if not text:
             return []
         # QwenPaw tags failed turns via ``_meta`` so we can render them as
         # an error instead of a normal assistant reply (see the ACP server's
         # ``ACP_ERROR_META_KEY``). Other agents omit it → plain text.
-        meta = getattr(update, "field_meta", None)
         if isinstance(meta, dict) and meta.get(_ERROR_META_KEY):
             return [TransportError(text)]
         return [TextDelta(text)]
