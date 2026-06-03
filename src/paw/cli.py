@@ -26,17 +26,21 @@ def _build_transport(
     agent: str | None,
     agent_cmd: str | None,
     remote: str | None,
+    token: str | None,
 ):
-    """Return a started-on-demand transport for the requested target."""
+    """Return ``(transport, description)`` for the requested target."""
+    # Networked qwenpaw app server over HTTP/SSE.
     if remote and remote.startswith(("http://", "https://")):
-        raise click.ClickException(
-            "remote HTTP/SSE transport (to `qwenpaw app`) is not implemented "
-            "yet; use `--remote ssh://host` for a remote agent over SSH, "
-            "or run paw against a local/bundled QwenPaw."
+        from .transport.http import HttpTransport
+
+        return (
+            HttpTransport(remote, agent=agent, token=token),
+            f"http: {remote}",
         )
 
+    # Otherwise an ACP/stdio agent: explicit command, ssh, bundled, or PATH.
     ssh = remote if (remote and remote.startswith("ssh://")) else None
-    if remote and not ssh and not remote.startswith(("http://", "https://")):
+    if remote and not ssh:
         # Bare host given: treat as ssh://host.
         ssh = f"ssh://{remote}"
 
@@ -49,7 +53,10 @@ def _build_transport(
 
     from .transport.acp import AcpTransport
 
-    return AcpTransport(agent=agent, command=resolved.command), resolved
+    return (
+        AcpTransport(agent=agent, command=resolved.command),
+        resolved.description,
+    )
 
 
 async def _run_oneshot(transport, prompt: str) -> int:
@@ -87,8 +94,8 @@ async def _run_oneshot(transport, prompt: str) -> int:
     "--remote",
     default=None,
     metavar="TARGET",
-    help="ssh://[user@]host[:port] for a remote QwenPaw over SSH "
-    "(https://host for a `qwenpaw app` server — not yet implemented).",
+    help="ssh://[user@]host[:port] for a remote QwenPaw over SSH, or "
+    "http(s)://host[:port] for a running `qwenpaw app` server.",
 )
 @click.option(
     "--agent-cmd",
@@ -97,16 +104,22 @@ async def _run_oneshot(transport, prompt: str) -> int:
     help="Explicit command that speaks ACP over stdio "
     "(e.g. 'qwenpaw acp'). Overrides discovery.",
 )
+@click.option(
+    "--token",
+    default=None,
+    help="Bearer token for an authed `qwenpaw app` (or set PAW_TOKEN).",
+)
 @click.version_option(version=__version__, prog_name="paw")
 def main(
     agent: str | None,
     prompt: str | None,
     remote: str | None,
     agent_cmd: str | None,
+    token: str | None,
 ) -> None:
     """paw — a terminal chat UI for QwenPaw."""
-    transport, resolved = _build_transport(
-        agent=agent, agent_cmd=agent_cmd, remote=remote
+    transport, description = _build_transport(
+        agent=agent, agent_cmd=agent_cmd, remote=remote, token=token
     )
 
     if prompt is not None:
@@ -117,9 +130,7 @@ def main(
 
     from .app import PawApp
 
-    PawApp(
-        transport, agent=agent or "default", target=resolved.description
-    ).run()
+    PawApp(transport, agent=agent or "default", target=description).run()
 
 
 if __name__ == "__main__":

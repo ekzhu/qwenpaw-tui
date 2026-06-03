@@ -12,7 +12,6 @@ import pytest
 from paw.events import (
     Connected,
     PermissionRequest,
-    PushMessage,
     TextDelta,
     ThoughtDelta,
     ToolCall,

@@ -67,8 +67,16 @@ Slash commands are forwarded to the agent.
    (`paw[bundled]`), runs `python -m qwenpaw acp`.
 4. **PATH** — runs `qwenpaw acp`.
 
-A networked `qwenpaw app` server (HTTP/SSE) via `--remote https://…` is planned
-but not yet implemented.
+Or skip ACP entirely and attach to a **networked `qwenpaw app` server** over
+HTTP/SSE:
+
+```bash
+paw --remote http://host:8088              # or https://
+paw --remote https://host --token "$TOK"   # if the server has auth enabled
+```
+
+This streams over `POST /api/console/chat`, stops via the stop endpoint, and
+polls for tool-approval prompts — no QwenPaw install needed on the paw side.
 
 ## How it works
 

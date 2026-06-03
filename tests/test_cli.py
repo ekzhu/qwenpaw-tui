@@ -27,10 +27,12 @@ def test_version():
     assert "paw" in result.output
 
 
-def test_http_remote_not_implemented():
-    result = CliRunner().invoke(main, ["--remote", "https://host:8088"])
+def test_http_unreachable_errors_cleanly():
+    # One-shot against an unreachable server should fail fast, not hang.
+    result = CliRunner().invoke(
+        main, ["--remote", "http://127.0.0.1:1", "-p", "hi"]
+    )
     assert result.exit_code != 0
-    assert "not implemented" in result.output.lower()
 
 
 def test_oneshot_against_fake_agent():
