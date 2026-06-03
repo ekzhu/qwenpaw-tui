@@ -313,6 +313,34 @@ async def test_slash_command_suggestions():
 
 
 @pytest.mark.asyncio
+async def test_text_after_tool_mounts_below_it():
+    transport = FakeTransport()
+    app = PawApp(transport)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # text → tool → more text: the transcript should read top-down in
+        # that order (the post-tool text must not fold into the first bubble).
+        await app._dispatch(TextDelta("Let me check."))
+        await app._dispatch(
+            ToolCall("t1", "grep", kind="search", status="in_progress")
+        )
+        await app._dispatch(TextDelta("Found it."))
+        await pilot.pause()
+
+        transcript = app.query_one("#transcript")
+        kinds = [
+            type(w).__name__
+            for w in transcript.children
+            if isinstance(w, (AssistantMessage, ToolPanel))
+        ]
+        assert kinds == ["AssistantMessage", "ToolPanel", "AssistantMessage"]
+
+        bubbles = list(app.query(AssistantMessage))
+        assert bubbles[0].text == "Let me check."
+        assert bubbles[1].text == "Found it."
+
+
+@pytest.mark.asyncio
 async def test_thinking_finalizes_to_thought_for():
     transport = FakeTransport()
     app = PawApp(transport)

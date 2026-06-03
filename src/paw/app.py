@@ -220,9 +220,11 @@ class PawApp(App):
 
     async def _dispatch(self, event) -> None:
         if isinstance(event, TextDelta):
-            # The visible answer beginning means thinking is done.
+            # The visible answer beginning means thinking is done; drop the
+            # lane so reasoning that resumes later starts a fresh block.
             if self._thought is not None:
                 self._thought.done()
+                self._thought = None
             if self._assistant is None:
                 self._assistant = AssistantMessage()
                 await self._mount(self._assistant)
@@ -232,6 +234,9 @@ class PawApp(App):
             self._refresh_tokens()
 
         elif isinstance(event, ThoughtDelta):
+            # A new thinking block: any answer text after it should mount
+            # below, so close the current assistant bubble.
+            self._assistant = None
             if self._thought is None:
                 self._thought = ThoughtMessage(live=True)
                 await self._mount(self._thought)
@@ -241,11 +246,15 @@ class PawApp(App):
             self._refresh_tokens()
 
         elif isinstance(event, ToolCall):
-            # A tool starting also ends the current thinking block.
-            if self._thought is not None:
-                self._thought.done()
             panel = self._tools.get(event.tool_call_id)
             if panel is None:
+                # A new tool ends the current thinking block and closes the
+                # assistant bubble, so transcript widgets stay in the order
+                # content was produced (text → tool → text reads top-down).
+                if self._thought is not None:
+                    self._thought.done()
+                    self._thought = None
+                self._assistant = None
                 panel = ToolPanel(
                     event.tool_call_id,
                     event.title,
