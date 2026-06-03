@@ -15,6 +15,7 @@ from .events import (
     PermissionRequest,
     PlanUpdate,
     PushMessage,
+    SessionTitle,
     TextDelta,
     ThoughtDelta,
     TokenUsage,
@@ -25,6 +26,7 @@ from .events import (
 )
 from .transport.base import TuiTransport
 from .widgets import (
+    AgentLabel,
     AssistantMessage,
     CommandMenu,
     CommandSuggester,
@@ -48,13 +50,17 @@ class PawApp(App):
     #transcript { padding: 1 2; }
     .msg { height: auto; margin-bottom: 1; }
     .msg.user { color: $text; }
+    /* One agent label per turn, sitting tight above the activity below it. */
+    .agentlabel { height: 1; margin: 0 0 0 0; }
     /* Tool calls + thinking are Collapsible widgets; flatten the default
        chrome so they sit quietly in the transcript. */
     .tool, .msg.thought {
         height: auto; background: transparent;
         border-top: none; padding: 0; margin: 0 0 1 0;
     }
-    .tool {
+    /* Indent thinking + tools the same, with a shared left rule, so the
+       agent's "activity" lanes line up consistently under the answer. */
+    .tool, .msg.thought {
         margin-left: 2; padding-left: 1;
         border-left: thick #3a3a4a;
     }
@@ -85,6 +91,8 @@ class PawApp(App):
         self._target = target
         self._assistant: AssistantMessage | None = None
         self._thought: ThoughtMessage | None = None
+        # Whether the "qwenpaw" label has been shown for the current turn.
+        self._labeled = False
         self._tools: dict[str, ToolPanel] = {}
         self._tools_hidden = False
         self._busy = False
@@ -129,6 +137,22 @@ class PawApp(App):
         await self._transcript().mount(widget)
         self._transcript().scroll_end(animate=False)
 
+    async def _ensure_turn_label(self) -> None:
+        """Mount the ``qwenpaw`` label once per turn, above the first piece
+        of assistant activity (thinking, a tool, or the answer)."""
+        if not self._labeled:
+            self._labeled = True
+            await self._mount(AgentLabel())
+
+    def _set_terminal_title(self, title: str) -> None:
+        """Set the terminal tab/window title via an OSC escape sequence."""
+        driver = getattr(self, "_driver", None)
+        if driver is not None:
+            try:
+                driver.write(f"\x1b]2;{title}\x07")
+            except Exception:  # noqa: BLE001 - cosmetic, never fatal
+                pass
+
     # -- input ---------------------------------------------------------------
     def on_input_changed(self, event: Input.Changed) -> None:
         self._menu.update_for(event.value)
@@ -145,9 +169,11 @@ class PawApp(App):
             )
             return
         await self._mount(UserMessage(text))
-        # Reset per-turn lane state so a fresh assistant bubble is created.
+        # Reset per-turn lane state so a fresh assistant bubble (and a single
+        # new "qwenpaw" label) is created for the reply.
         self._assistant = None
         self._thought = None
+        self._labeled = False
         self._busy = True
         self._status().set(state="thinking")
         try:
@@ -202,6 +228,9 @@ class PawApp(App):
             model=ev.model or "—",
             state="ready",
         )
+        # Start with the session id; replaced by the real title once the
+        # agent reports one (see SessionTitle).
+        self._set_terminal_title(f"QwenPaw {str(ev.session_id)[:8]}")
 
     # Rough bytes-per-token for the live output estimate (~4 chars/token for
     # typical text; intentionally crude — it's marked approximate and is
@@ -220,6 +249,7 @@ class PawApp(App):
 
     async def _dispatch(self, event) -> None:
         if isinstance(event, TextDelta):
+            await self._ensure_turn_label()
             # The visible answer beginning means thinking is done; drop the
             # lane so reasoning that resumes later starts a fresh block.
             if self._thought is not None:
@@ -234,6 +264,7 @@ class PawApp(App):
             self._refresh_tokens()
 
         elif isinstance(event, ThoughtDelta):
+            await self._ensure_turn_label()
             # A new thinking block: any answer text after it should mount
             # below, so close the current assistant bubble.
             self._assistant = None
@@ -248,6 +279,7 @@ class PawApp(App):
         elif isinstance(event, ToolCall):
             panel = self._tools.get(event.tool_call_id)
             if panel is None:
+                await self._ensure_turn_label()
                 # A new tool ends the current thinking block and closes the
                 # assistant bubble, so transcript widgets stay in the order
                 # content was produced (text → tool → text reads top-down).
@@ -274,6 +306,9 @@ class PawApp(App):
             # complete after it was switched on.
             if self._tools_hidden and panel.is_done:
                 panel.add_class("hidden")
+
+        elif isinstance(event, SessionTitle):
+            self._set_terminal_title(f"QwenPaw {event.title}")
 
         elif isinstance(event, AvailableCommands):
             self._suggester.set_commands(event.commands)
@@ -317,6 +352,7 @@ class PawApp(App):
                 self._thought.done()
             self._assistant = None
             self._thought = None
+            self._labeled = False
             self._tools.clear()
             # Drop any leftover estimate (e.g. a turn with no usage report).
             self._stream_chars = 0

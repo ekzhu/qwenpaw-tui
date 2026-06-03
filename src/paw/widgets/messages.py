@@ -23,16 +23,30 @@ class UserMessage(Static):
         super().__init__(body, classes="msg user")
 
 
+class AgentLabel(Static):
+    """The ``qwenpaw`` lane label, shown once at the start of a turn.
+
+    Kept separate from :class:`AssistantMessage` so a turn that interleaves
+    thinking, tools and several answer chunks shows a single label above the
+    whole group rather than one per bubble.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            Text("qwenpaw", style="bold #b48cff"), classes="agentlabel"
+        )
+
+
 class AssistantMessage(Widget):
     """Streaming assistant answer rendered as markdown.
 
-    ``append()`` accumulates deltas and re-renders; the lane label is shown
-    once above the body.
+    ``append()`` accumulates deltas and re-renders. The lane label is mounted
+    separately (see :class:`AgentLabel`) so post-tool answer chunks flow
+    under the same label instead of looking like new messages.
     """
 
     DEFAULT_CSS = """
     AssistantMessage { height: auto; }
-    AssistantMessage > .label { color: #b48cff; text-style: bold; }
     AssistantMessage > Markdown { height: auto; margin: 0; }
     """
 
@@ -42,7 +56,6 @@ class AssistantMessage(Widget):
         self._md = Markdown("")
 
     def compose(self) -> ComposeResult:
-        yield Static("qwenpaw", classes="label")
         yield self._md
 
     async def append(self, delta: str) -> None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from .command_menu import CommandMenu, CommandSuggester, PromptInput
 from .messages import (
+    AgentLabel,
     AssistantMessage,
     ErrorMessage,
     PushMessageBox,
@@ -16,6 +17,7 @@ from .status_bar import StatusBar
 from .tool_panel import ToolPanel
 
 __all__ = [
+    "AgentLabel",
     "AssistantMessage",
     "CommandMenu",
     "CommandSuggester",

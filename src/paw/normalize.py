@@ -21,6 +21,7 @@ from .events import (
     AvailableCommands,
     PlanEntry,
     PlanUpdate,
+    SessionTitle,
     SlashCommand,
     TextDelta,
     ThoughtDelta,
@@ -172,6 +173,10 @@ def normalize_update(update: Any) -> list[TuiEvent]:
         ]
         return [AvailableCommands(commands=commands)]
 
-    # current_mode / config_option / session_info / user_message_chunk:
+    if kind == "session_info_update":
+        title = getattr(update, "title", None)
+        return [SessionTitle(str(title))] if title else []
+
+    # current_mode / config_option / user_message_chunk:
     # not surfaced in the chat transcript (yet).
     return []

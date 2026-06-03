@@ -21,6 +21,13 @@ class Connected:
 
 
 @dataclass(frozen=True)
+class SessionTitle:
+    """A human-readable title for the session (e.g. for the terminal tab)."""
+
+    title: str
+
+
+@dataclass(frozen=True)
 class TextDelta:
     """A chunk of visible assistant text (already a delta, not cumulative)."""
 
@@ -140,6 +147,7 @@ class TransportError:
 # The normalized union the UI consumes.
 TuiEvent = (
     Connected
+    | SessionTitle
     | TextDelta
     | ThoughtDelta
     | ToolCall

@@ -13,6 +13,7 @@ from paw.events import (
     Connected,
     PermissionOption,
     PermissionRequest,
+    SessionTitle,
     SlashCommand,
     TextDelta,
     ThoughtDelta,
@@ -21,6 +22,7 @@ from paw.events import (
     TurnEnded,
 )
 from paw.widgets import (
+    AgentLabel,
     AssistantMessage,
     CommandMenu,
     PermissionModal,
@@ -310,6 +312,54 @@ async def test_slash_command_suggestions():
         assert prompt.value == "/agent "
         assert not menu.display
         assert transport.sent == []
+
+
+@pytest.mark.asyncio
+async def test_terminal_title_uses_session_then_title():
+    transport = FakeTransport()
+    app = PawApp(transport)
+    titles: list[str] = []
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Capture what we write to the terminal.
+        app._set_terminal_title = lambda t: titles.append(t)  # type: ignore
+
+        app._on_connected(Connected(session_id="abcd1234ef", agent="a"))
+        assert titles[-1] == "QwenPaw abcd1234"
+
+        await app._dispatch(SessionTitle("Fix the parser"))
+        await pilot.pause()
+        assert titles[-1] == "QwenPaw Fix the parser"
+
+
+@pytest.mark.asyncio
+async def test_single_agent_label_per_turn_above_thinking():
+    transport = FakeTransport()
+    app = PawApp(transport)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # thinking → tool → answer: exactly one "qwenpaw" label, and it sits
+        # above the first activity (the thinking lane).
+        await app._dispatch(ThoughtDelta("hmm"))
+        await app._dispatch(
+            ToolCall("t1", "grep", kind="search", status="in_progress")
+        )
+        await app._dispatch(TextDelta("Done."))
+        await pilot.pause()
+
+        labels = list(app.query(AgentLabel))
+        assert len(labels) == 1
+
+        transcript = app.query_one("#transcript")
+        types = [
+            type(w).__name__
+            for w in transcript.children
+            if isinstance(
+                w, (AgentLabel, ThoughtMessage, ToolPanel, AssistantMessage)
+            )
+        ]
+        assert types[0] == "AgentLabel"
+        assert types[1] == "ThoughtMessage"
 
 
 @pytest.mark.asyncio

@@ -172,6 +172,19 @@ def test_available_commands_update():
     ]
 
 
+def test_session_info_update_is_session_title():
+    from acp.schema import SessionInfoUpdate
+
+    upd = SessionInfoUpdate(
+        sessionUpdate="session_info_update", title="Fix the parser"
+    )
+    assert normalize_update(upd) == [E.SessionTitle("Fix the parser")]
+
+    # No title → nothing surfaced.
+    cleared = SessionInfoUpdate(sessionUpdate="session_info_update")
+    assert normalize_update(cleared) == []
+
+
 def test_unknown_update_is_empty():
     class Weird:
         session_update = "something_new"
