@@ -60,11 +60,17 @@ def test_usage_meta_chunk_is_token_usage():
                 "inputTokens": 1200,
                 "outputTokens": 340,
                 "totalTokens": 1540,
+                "model": "qwen3.6-plus",
             }
         },
     )
     assert normalize_update(chunk) == [
-        E.TokenUsage(input_tokens=1200, output_tokens=340, total_tokens=1540)
+        E.TokenUsage(
+            input_tokens=1200,
+            output_tokens=340,
+            total_tokens=1540,
+            model="qwen3.6-plus",
+        )
     ]
 
 

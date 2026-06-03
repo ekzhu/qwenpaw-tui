@@ -249,7 +249,10 @@ class PawApp(App):
         elif isinstance(event, TokenUsage):
             self._tok_in += event.input_tokens
             self._tok_out += event.output_tokens
-            self._status().set(tok_in=self._tok_in, tok_out=self._tok_out)
+            fields = {"tok_in": self._tok_in, "tok_out": self._tok_out}
+            if event.model:
+                fields["model"] = event.model
+            self._status().set(**fields)
 
         elif isinstance(event, PlanUpdate):
             # Render the plan inline as a thought-style summary for now.

@@ -73,12 +73,15 @@ class TokenUsage:
     """Incremental token counts from one LLM call.
 
     QwenPaw reports usage per LLM invocation, so the UI sums these to show
-    the running input/output totals for the session.
+    the running input/output totals for the session. ``model`` is the model
+    that produced the call (the session may bind it late, e.g. via a
+    global fallback), so the UI can fill in the model name once known.
     """
 
     input_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
+    model: str | None = None
 
 
 @dataclass(frozen=True)

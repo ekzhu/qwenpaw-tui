@@ -107,6 +107,7 @@ def normalize_update(update: Any) -> list[TuiEvent]:
                     input_tokens=int(u.get("inputTokens", 0) or 0),
                     output_tokens=int(u.get("outputTokens", 0) or 0),
                     total_tokens=int(u.get("totalTokens", 0) or 0),
+                    model=str(u.get("model")) if u.get("model") else None,
                 )
             ]
         text = _block_text(getattr(update, "content", None))
