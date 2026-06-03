@@ -30,13 +30,13 @@ it stays light and is released independently of QwenPaw.
 **Light** — you already have (or will install) QwenPaw:
 
 ```bash
-pip install paw          # expects `qwenpaw` on PATH or in the same env
+pip install qwenpaw-tui   # expects `qwenpaw` on PATH or in the same env
 ```
 
 **Bundled** — install QwenPaw alongside paw in one go:
 
 ```bash
-pip install "paw[bundled]"   # pulls qwenpaw too; works with no separate install
+pip install "qwenpaw-tui[bundled]"   # pulls qwenpaw too; works with no separate install
 ```
 
 Remote-only users (driving a QwenPaw on another machine) need only the light
