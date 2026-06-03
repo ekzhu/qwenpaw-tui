@@ -99,6 +99,38 @@ pip install -e ".[dev]"
 pytest            # unit + transport + UI + CLI tests
 ```
 
+### Against a local QwenPaw checkout
+
+To test paw against an in-development QwenPaw (e.g. a sibling `../QwenPaw`
+editable install) without touching your normal QwenPaw setup, point `paw` at
+that checkout's interpreter with `--agent-cmd`, and isolate its data with
+`QWENPAW_WORKING_DIR`:
+
+```bash
+QWENPAW_WORKING_DIR="$PWD/.devdata" \
+  paw --agent-cmd "/path/to/QwenPaw/.venv/bin/python -m qwenpaw acp"
+```
+
+`paw` forwards its environment to the spawned agent, so any vars you set
+(`QWENPAW_WORKING_DIR`, provider keys, etc.) reach QwenPaw. The agent uses
+`.devdata`/`.devdata.secret` for its config, sessions, and secrets, leaving
+`~/.qwenpaw` untouched.
+
+First time, seed a provider key and pick a model **into `.devdata`** using
+QwenPaw's own config (run the dev interpreter with the same working dir):
+
+```bash
+DEV="/path/to/QwenPaw/.venv/bin/python"
+# store an API key for a provider (id: `dashscope` or `openai`) — paste the
+# key at the prompt, e.g. $DASHSCOPE_API_KEY / $OPENAI_API_KEY
+QWENPAW_WORKING_DIR="$PWD/.devdata" "$DEV" -m qwenpaw models config-key dashscope
+# then choose the active model
+QWENPAW_WORKING_DIR="$PWD/.devdata" "$DEV" -m qwenpaw models set-llm
+```
+
+The key is encrypted into `.devdata.secret`, so it stays out of your normal
+install (and out of git).
+
 ## License
 
 MIT
