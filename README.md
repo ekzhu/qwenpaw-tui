@@ -42,9 +42,6 @@ pip install qwenpaw-tui   # expects `qwenpaw` on PATH or in the same env
 pip install "qwenpaw-tui[bundled]"   # pulls qwenpaw too; works with no separate install
 ```
 
-Remote-only users (driving a QwenPaw on another machine) need only the light
-install.
-
 ## Usage
 
 ```bash
@@ -52,7 +49,6 @@ paw                              # interactive chat with a local/bundled QwenPaw
 paw --agent writer               # pick a specific agent
 paw -p "what's on my calendar?"  # one-shot: print the answer and exit
 
-paw --remote ssh://me@host       # drive QwenPaw on a remote host over SSH (ACP)
 paw --agent-cmd "qwenpaw acp"    # drive an explicit ACP command
 ```
 
@@ -67,27 +63,14 @@ top match is also shown (`→` accepts it).
 `paw` resolves the agent to drive in this order:
 
 1. `--agent-cmd "<command>"` — used verbatim.
-2. `--remote ssh://[user@]host[:port]` — runs `qwenpaw acp` on the remote host
-   over SSH (ACP/stdio tunnelled through ssh).
-3. **Bundled** — if `qwenpaw` is importable in paw's environment
+2. **Bundled** — if `qwenpaw` is importable in paw's environment
    (`paw[bundled]`), runs `python -m qwenpaw acp`.
-4. **PATH** — runs `qwenpaw acp`.
-
-Or skip ACP entirely and attach to a **networked `qwenpaw app` server** over
-HTTP/SSE:
-
-```bash
-paw --remote http://host:8088              # or https://
-paw --remote https://host --token "$TOK"   # if the server has auth enabled
-```
-
-This streams over `POST /api/console/chat`, stops via the stop endpoint, and
-polls for tool-approval prompts — no QwenPaw install needed on the paw side.
+3. **PATH** — runs `qwenpaw acp`.
 
 ## How it works
 
-`paw` is an ACP **client**. It spawns the QwenPaw agent as a subprocess (or over
-SSH) and exchanges JSON-RPC over stdio. Because QwenPaw already ships a full ACP
+`paw` is an ACP **client**. It spawns the QwenPaw agent as a subprocess and
+exchanges JSON-RPC over stdio. Because QwenPaw already ships a full ACP
 agent (`qwenpaw acp`), paw reuses the entire backend — tools, memory, slash
 commands, permissions, model switching — without re-implementing any of it.
 

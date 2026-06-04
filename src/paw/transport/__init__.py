@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""TUI transports: ACP subprocess (default) and HTTP/SSE (remote)."""
+"""TUI transports: ACP subprocess."""
 
 from __future__ import annotations
 

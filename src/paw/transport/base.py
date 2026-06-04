@@ -12,9 +12,8 @@ from ..events import Connected, TuiEvent
 class TuiTransport(Protocol):
     """Drives one agent conversation and yields normalized ``TuiEvent``s.
 
-    Implementations: :class:`~qwenpaw.cli.tui.transport.acp.AcpTransport`
-    (spawns ``qwenpaw acp``) and, later, an HTTP/SSE transport for a running
-    ``qwenpaw app`` server. The UI layer only ever sees this interface.
+    Implementation: :class:`~qwenpaw.cli.tui.transport.acp.AcpTransport`
+    (spawns ``qwenpaw acp``). The UI layer only ever sees this interface.
     """
 
     async def start(self) -> Connected:

@@ -21,17 +21,6 @@ def test_agent_id_is_appended():
     assert r.command == ["qwenpaw", "acp", "--agent", "writer"]
 
 
-def test_ssh_target():
-    r = resolve_agent_command(ssh="ssh://me@box:2222")
-    assert r.command == ["ssh", "-p", "2222", "me@box", "qwenpaw", "acp"]
-    assert "ssh" in r.description
-
-
-def test_ssh_without_user_or_port():
-    r = resolve_agent_command(ssh="ssh://host")
-    assert r.command == ["ssh", "host", "qwenpaw", "acp"]
-
-
 def test_bundled_preferred(monkeypatch):
     monkeypatch.setattr(resolve, "_bundled_qwenpaw", lambda: True)
     r = resolve_agent_command()

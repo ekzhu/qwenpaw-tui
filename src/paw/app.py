@@ -44,7 +44,7 @@ from .widgets import (
 
 
 class PawApp(App):
-    """Streaming chat over a :class:`TuiTransport` (ACP by default)."""
+    """Streaming chat over a :class:`TuiTransport` (ACP)."""
 
     CSS = """
     Screen { background: $background; }

@@ -17,7 +17,6 @@ def test_help():
     result = CliRunner().invoke(main, ["--help"])
     assert result.exit_code == 0
     assert "terminal chat UI for QwenPaw" in result.output
-    assert "--remote" in result.output
     assert "--agent-cmd" in result.output
 
 
@@ -25,14 +24,6 @@ def test_version():
     result = CliRunner().invoke(main, ["--version"])
     assert result.exit_code == 0
     assert "paw" in result.output
-
-
-def test_http_unreachable_errors_cleanly():
-    # One-shot against an unreachable server should fail fast, not hang.
-    result = CliRunner().invoke(
-        main, ["--remote", "http://127.0.0.1:1", "-p", "hi"]
-    )
-    assert result.exit_code != 0
 
 
 def test_oneshot_against_fake_agent():

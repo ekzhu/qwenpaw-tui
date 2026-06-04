@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """Normalized TUI event types.
 
-Both transports (ACP subprocess and HTTP/SSE) translate their wire formats
-into this small union so the UI layer is transport-agnostic. This is the
-``TuiEvent`` contract referenced in the design doc (§4.2/§4.3).
+The ACP subprocess transport translates its wire format into this small union
+so the UI layer is transport-agnostic. This is the ``TuiEvent`` contract
+referenced in the design doc (§4.2/§4.3).
 """
 
 from __future__ import annotations
@@ -139,7 +139,7 @@ class AvailableCommands:
 
 @dataclass(frozen=True)
 class PushMessage:
-    """A server-initiated proactive message (ACP ext / SSE push-message)."""
+    """A server-initiated proactive message (ACP ext push-message)."""
 
     text: str
 
