@@ -42,13 +42,6 @@ from .events import (
     Usage,
 )
 from .paths import state_dir
-from .providers import (
-    ProviderInfo,
-    configure_provider_key,
-    default_model,
-    default_provider,
-    discover_providers,
-)
 from .themes import (
     THEME_GALLERY,
     ThemeInfo,
@@ -67,10 +60,8 @@ from .widgets import (
     ErrorMessage,
     FileLinkBox,
     InfoMessage,
-    ModelPicker,
     PermissionModal,
     PromptInput,
-    ProviderSetup,
     PushMessageBox,
     QueuedMessage,
     StatusBar,
@@ -155,7 +146,6 @@ class PawApp(App):
         # input bar — the glyph was unfamiliar to most users.
         Binding("ctrl+t", "toggle_tools", "Hide/show tools", show=False),
         Binding("ctrl+i", "toggle_inspection", "Inspect", show=True),
-        Binding("ctrl+p", "configure_provider", "Provider", show=True),
         Binding("ctrl+r", "voice_input", "Voice", show=True),
         Binding("ctrl+c", "quit", "Quit", show=True, priority=True),
         Binding("ctrl+q", "quit", "Quit", show=False, priority=True),
@@ -183,6 +173,12 @@ class PawApp(App):
         self._busy = False
         self._backend_warmed = False
         self._awaiting_backend_update = False
+        # Per-turn flags so a turn that produces nothing the user can see (a
+        # silent backend failure, e.g. an unusable model) reports an error
+        # instead of quietly returning to "ready". ``_turn_saw_error`` avoids a
+        # duplicate "no response" message when a TransportError already showed.
+        self._turn_saw_output = False
+        self._turn_saw_error = False
         # Messages typed while the agent is busy wait here (FIFO) and are sent
         # automatically as each turn ends. Each entry pairs the text with its
         # dimmed transcript widget so it can be removed when sent or recalled.
@@ -200,11 +196,11 @@ class PawApp(App):
         self._suggester = CommandSuggester()
         self._menu = CommandMenu()
         self._agent_commands: list[SlashCommand] = []
-        self._local_commands = _local_commands([])
+        self._local_commands = _local_commands()
         self._set_command_catalog()
-        self._providers: list[ProviderInfo] = []
-        self._selected_provider = ""
-        self._selected_model = ""
+        # The model QwenPaw reports it is using (read-only, for the status bar
+        # and error messages). paw does not select or configure models.
+        self._model = ""
         self._theme_prompt = self._load_theme_prompt()
 
     # -- layout --------------------------------------------------------------
@@ -234,7 +230,6 @@ class PawApp(App):
                 accent_for_prompt(self._theme_prompt),
             )
         )
-        asyncio.create_task(self._refresh_providers())
         self._consume()
 
     # -- helpers -------------------------------------------------------------
@@ -350,6 +345,8 @@ class PawApp(App):
         self._labeled = False
         self._busy = True
         self._awaiting_backend_update = True
+        self._turn_saw_output = False
+        self._turn_saw_error = False
         self._status().set(state=self._current_work_state())
         try:
             await self._transport.send(text)
@@ -425,9 +422,6 @@ class PawApp(App):
         mode = "inspection" if self._inspection_mode else "friendly"
         self.notify(f"{mode} mode", timeout=2)
 
-    async def action_configure_provider(self) -> None:
-        await self._open_provider_setup()
-
     async def action_voice_input(self) -> None:
         await self._capture_voice()
 
@@ -443,15 +437,11 @@ class PawApp(App):
             case "/help":
                 await self._mount(
                     InfoMessage(
-                        "Try /model to pick a model, /providers to save a "
-                        "provider key, /theme <prompt> to personalize the "
-                        "background, /inspect for details, or /voice."
+                        "Try /theme <prompt> to personalize the background, "
+                        "/inspect for details, or /voice. Model and provider "
+                        "commands (e.g. /model) are handled by QwenPaw."
                     )
                 )
-            case "/model":
-                await self._handle_model_command(rest.strip())
-            case "/providers" | "/provider":
-                await self._open_provider_setup()
             case "/theme":
                 await self._handle_theme_command(rest.strip())
             case "/inspect":
@@ -459,19 +449,14 @@ class PawApp(App):
             case "/voice":
                 await self._capture_voice()
             case _:
-                # Preserve QwenPaw's own slash command surface.
+                # Everything else (including QwenPaw's own slash commands such
+                # as /model and /clear) is forwarded to the agent.
                 if self._busy:
                     widget = QueuedMessage(raw)
                     await self._mount(widget)
                     self._queued.append((raw, widget))
                     return
                 await self._submit(raw)
-
-    async def _handle_model_command(self, rest: str) -> None:
-        if not rest or rest == "list":
-            await self._open_model_picker()
-            return
-        await self._switch_model(rest)
 
     async def _handle_theme_command(self, rest: str) -> None:
         if not rest or rest in {"gallery", "list"}:
@@ -496,108 +481,6 @@ class PawApp(App):
             self.notify(f"{theme.emoji} {theme.name}", timeout=2)
             return
         self._apply_theme_prompt(theme)
-
-    async def _open_model_picker(self) -> None:
-        await self._ensure_providers()
-        if not self._providers:
-            await self._mount(ErrorMessage("No providers are available."))
-            return
-        selected_provider = self._selected_provider
-        selected_model = self._selected_model
-        if not selected_provider:
-            provider = default_provider(self._providers)
-            selected_provider = provider.id
-            selected_model = default_model(provider)
-        await self.push_screen(
-            ModelPicker(self._providers, selected_provider, selected_model),
-            callback=self._apply_model_picker_result,
-        )
-
-    def _apply_model_picker_result(
-        self, result: tuple[str, str] | None
-    ) -> None:
-        self.query_one("#prompt", PromptInput).focus()
-        if result is None:
-            return
-        provider_id, model = result
-        self.run_worker(
-            self._switch_model(f"{provider_id}:{model}"), exclusive=False
-        )
-
-    async def _open_provider_setup(self) -> None:
-        await self._ensure_providers()
-        if not self._providers:
-            self._providers = []
-        provider = self._selected_provider
-        model = self._selected_model
-        if not provider and self._providers:
-            info = default_provider(self._providers)
-            provider = info.id
-            model = default_model(info)
-        await self.push_screen(
-            ProviderSetup(self._providers, provider, model),
-            callback=self._apply_provider_setup_result,
-        )
-
-    def _apply_provider_setup_result(
-        self, result: tuple[str, str, str] | None
-    ) -> None:
-        self.query_one("#prompt", PromptInput).focus()
-        if result is None:
-            return
-        provider_id, api_key, model = result
-        self.run_worker(
-            self._save_provider_setup(provider_id, api_key, model),
-            exclusive=False,
-        )
-
-    async def _save_provider_setup(
-        self, provider_id: str, api_key: str, model: str
-    ) -> None:
-        try:
-            message = await configure_provider_key(provider_id, api_key)
-        except Exception as exc:  # noqa: BLE001
-            await self._mount(ErrorMessage(str(exc)))
-            return
-        await self._refresh_providers()
-        await self._mount(InfoMessage(message, level="ok"))
-        if model:
-            await self._switch_model(f"{provider_id}:{model}")
-
-    async def _switch_model(self, model_spec: str) -> None:
-        if self._busy:
-            await self._mount(
-                InfoMessage(
-                    "Wait for the current turn to finish first.", level="warn"
-                )
-            )
-            return
-        try:
-            await self._transport.set_model(model_spec)
-        except Exception as exc:  # noqa: BLE001
-            await self._mount(ErrorMessage(f"model switch failed: {exc}"))
-            return
-        if ":" in model_spec:
-            self._selected_provider, self._selected_model = model_spec.split(
-                ":", 1
-            )
-        else:
-            self._selected_model = model_spec
-        self._status().set(model=model_spec)
-        await self._mount(InfoMessage(f"Using {model_spec}", level="ok"))
-
-    async def _refresh_providers(self) -> None:
-        self._providers = await discover_providers()
-        self._local_commands = _local_commands(self._providers)
-        self._set_command_catalog()
-        if not self._selected_provider and self._providers:
-            provider = default_provider(self._providers)
-            self._selected_provider = provider.id
-            self._selected_model = default_model(provider)
-
-    async def _ensure_providers(self) -> None:
-        if not self._providers:
-            await self._refresh_providers()
 
     async def _handle_prompt_paste(self, text: str) -> str | None:
         try:
@@ -767,12 +650,7 @@ class PawApp(App):
     def _on_connected(self, ev: Connected) -> None:
         self._backend_warmed = not ev.warming
         if ev.model:
-            if ":" in ev.model:
-                self._selected_provider, self._selected_model = ev.model.split(
-                    ":", 1
-                )
-            else:
-                self._selected_model = ev.model
+            self._model = ev.model
         self._status().set(
             session=ev.session_id,
             agent=ev.agent or self._agent,
@@ -899,6 +777,7 @@ class PawApp(App):
             self._tok_out += event.output_tokens
             self._stream_chars = 0
             if event.model:
+                self._model = event.model
                 self._status().set(model=event.model)
             self._refresh_tokens()
 
@@ -918,6 +797,7 @@ class PawApp(App):
 
         elif isinstance(event, TransportError):
             self._awaiting_backend_update = False
+            self._turn_saw_error = True
             self._status().set(state="error")
             await self._mount(ErrorMessage(event.message))
 
@@ -948,10 +828,25 @@ class PawApp(App):
             self._stream_chars = 0
             self._refresh_tokens()
             self._status().set(state="ready")
+            # A turn that ended without any visible output (and without an
+            # error already shown) is a silent backend failure — surface it so
+            # an unusable model doesn't just look like nothing happened.
+            if (
+                not self._turn_saw_output
+                and not self._turn_saw_error
+                and event.stop_reason != "cancelled"
+            ):
+                self._status().set(state="error")
+                await self._mount(
+                    ErrorMessage(self._no_response_text(event.stop_reason))
+                )
             # Hand off to the next message the user queued while we worked.
             await self._drain_queue()
 
     def _mark_backend_update(self) -> None:
+        # Reached on every text / thought / tool event, i.e. anything the user
+        # can see — so the turn produced a visible response.
+        self._turn_saw_output = True
         if not self._awaiting_backend_update:
             return
         self._awaiting_backend_update = False
@@ -964,6 +859,19 @@ class PawApp(App):
         if self._awaiting_backend_update:
             return "waiting" if self._backend_warmed else "warming"
         return "thinking"
+
+    def _no_response_text(self, stop_reason: str | None) -> str:
+        model = self._model or "the model"
+        extra = (
+            f" (stop reason: {stop_reason})"
+            if stop_reason and stop_reason not in {"end_turn", "stop"}
+            else ""
+        )
+        return (
+            f"No response from {model}{extra}. The model or its API key "
+            "may be misconfigured in QwenPaw — check it with `qwenpaw "
+            "doctor` or `qwenpaw models config-key`."
+        )
 
     def _on_permission(self, event: PermissionRequest) -> None:
         def _resolve(option_id: str | None) -> None:
@@ -980,11 +888,11 @@ class PawApp(App):
         await self._transport.close()
 
 
-def _local_commands(providers: list[ProviderInfo]) -> list[SlashCommand]:
+def _local_commands() -> list[SlashCommand]:
+    """Slash commands handled by the TUI itself. Model/provider commands are
+    QwenPaw's and are forwarded to the agent, not listed here."""
     commands = [
         SlashCommand("help", "show QwenPaw TUI shortcuts"),
-        SlashCommand("model", "pick or switch model"),
-        SlashCommand("providers", "configure model provider keys"),
         SlashCommand("theme", "open theme gallery or apply a vibe"),
         SlashCommand("voice", "dictate into the prompt"),
         SlashCommand("inspect", "toggle deeper thought/tool detail"),
@@ -996,15 +904,6 @@ def _local_commands(providers: list[ProviderInfo]) -> list[SlashCommand]:
         )
         for theme in THEME_GALLERY
     )
-    for provider in providers:
-        marker = "✓" if provider.configured else "key"
-        for model in provider.models[:8]:
-            commands.append(
-                SlashCommand(
-                    f"model {provider.id}:{model}",
-                    f"{provider.label} · {marker}",
-                )
-            )
     return commands
 
 

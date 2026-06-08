@@ -38,10 +38,6 @@ class TuiTransport(Protocol):
         """Answer a pending permission request (``None`` = deny/cancel)."""
         ...
 
-    async def set_model(self, model_id: str) -> None:
-        """Switch the session model."""
-        ...
-
     async def close(self) -> None:
         """Tear down the session and any subprocess."""
         ...

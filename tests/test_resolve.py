@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import sys
-
 import pytest
 
 from paw import resolve
@@ -21,22 +19,13 @@ def test_agent_id_is_appended():
     assert r.command == ["qwenpaw", "acp", "--agent", "writer"]
 
 
-def test_bundled_preferred(monkeypatch):
-    monkeypatch.setattr(resolve, "_bundled_qwenpaw", lambda: True)
-    r = resolve_agent_command()
-    assert r.command == [sys.executable, "-m", "qwenpaw", "acp"]
-    assert r.description == "bundled qwenpaw"
-
-
-def test_path_fallback(monkeypatch):
-    monkeypatch.setattr(resolve, "_bundled_qwenpaw", lambda: False)
+def test_path_resolution(monkeypatch):
     monkeypatch.setattr(resolve.shutil, "which", lambda _: "/usr/bin/qwenpaw")
     r = resolve_agent_command()
     assert r.command == ["/usr/bin/qwenpaw", "acp"]
 
 
 def test_not_found_raises(monkeypatch):
-    monkeypatch.setattr(resolve, "_bundled_qwenpaw", lambda: False)
     monkeypatch.setattr(resolve.shutil, "which", lambda _: None)
     with pytest.raises(AgentResolutionError):
         resolve_agent_command()

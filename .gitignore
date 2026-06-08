@@ -31,3 +31,6 @@ logs/
 # Local dev/runtime artifacts
 .devdata/
 .harness-arena/
+
+# Generated lockfile (project uses setuptools/pip)
+uv.lock

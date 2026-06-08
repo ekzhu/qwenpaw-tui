@@ -17,7 +17,6 @@ from .messages import (
     WelcomeMessage,
     UserMessage,
 )
-from .model_picker import ModelPicker, ProviderSetup
 from .permission_modal import PermissionModal
 from .status_bar import StatusBar
 from .theme_picker import ThemePicker
@@ -33,9 +32,7 @@ __all__ = [
     "ErrorMessage",
     "FileLinkBox",
     "InfoMessage",
-    "ModelPicker",
     "PushMessageBox",
-    "ProviderSetup",
     "QueuedMessage",
     "ThemePicker",
     "ThoughtMessage",

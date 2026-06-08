@@ -7,7 +7,7 @@ import asyncio
 
 import pytest
 
-from paw.app import PawApp, _local_commands
+from paw.app import PawApp
 from paw.__version__ import __version__
 from paw.events import (
     AvailableCommands,
@@ -24,12 +24,12 @@ from paw.events import (
     ToolCall,
     TurnEnded,
 )
-from paw.providers import ProviderInfo
 from paw.widgets import (
     ActivityLine,
     AgentLabel,
     AssistantMessage,
     CommandMenu,
+    ErrorMessage,
     FileLinkBox,
     PermissionModal,
     QueuedMessage,
@@ -50,7 +50,6 @@ class FakeTransport:
         self.sent: list[str] = []
         self.interrupted = False
         self.resolved: list[tuple[str, str | None]] = []
-        self.models: list[str] = []
         self.closed = False
         self._permission_mode = "none"
 
@@ -107,9 +106,6 @@ class FakeTransport:
         self.resolved.append((request_id, option_id))
         await self._queue.put(TextDelta(f"[{option_id}]"))
         await self._queue.put(TurnEnded())
-
-    async def set_model(self, model_id):
-        self.models.append(model_id)
 
     async def close(self):
         self.closed = True
@@ -172,6 +168,48 @@ async def test_basic_turn_renders():
         assert assistant.text == "Hello there"
         tools = list(app.query(ToolPanel))
         assert tools and tools[0]._status == "completed"
+
+
+class EmptyTurnTransport(FakeTransport):
+    """A turn that ends with no content — e.g. an unusable model."""
+
+    async def send(self, text: str) -> None:
+        self.sent.append(text)
+        await self._queue.put(TurnEnded(stop_reason="end_turn"))
+
+
+@pytest.mark.asyncio
+async def test_empty_turn_surfaces_error():
+    """A turn with no visible output reports an error, not a silent return."""
+    transport = EmptyTurnTransport()
+    app = PawApp(transport)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app._model = "dashscope:qwen3-max"
+        app.query_one("#prompt").value = "hi"
+        await pilot.press("enter")
+        for _ in range(10):
+            await pilot.pause()
+            if not app._busy:
+                break
+
+        assert not app._busy  # not stuck busy
+        errors = list(app.query(ErrorMessage))
+        assert errors, "expected an error message for an empty turn"
+        assert "No response" in errors[-1].content.plain
+        assert "dashscope:qwen3-max" in errors[-1].content.plain
+
+
+@pytest.mark.asyncio
+async def test_cancelled_empty_turn_is_not_an_error():
+    """Interrupting a turn before any output must not look like a failure."""
+    transport = FakeTransport()
+    app = PawApp(transport)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app._dispatch(TurnEnded(stop_reason="cancelled"))
+        await pilot.pause()
+        assert not list(app.query(ErrorMessage))
 
 
 @pytest.mark.asyncio
@@ -502,31 +540,6 @@ async def test_slash_command_suggests_theme_arguments():
         await pilot.press("tab")
         assert prompt.value == "/theme cyberpunk "
         assert transport.sent == []
-
-
-@pytest.mark.asyncio
-async def test_slash_command_suggests_provider_model_arguments():
-    transport = FakeTransport()
-    app = PawApp(transport)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        app._providers = [
-            ProviderInfo(
-                id="dashscope",
-                label="DashScope",
-                configured=True,
-                models=["qwen3-max", "qwen-plus"],
-            )
-        ]
-        app._local_commands = _local_commands(app._providers)
-        app._set_command_catalog()
-
-        menu = app.query_one(CommandMenu)
-        prompt = app.query_one("#prompt")
-        prompt.value = "/model dash"
-        await pilot.pause()
-        assert menu.display
-        assert menu.selected == "model dashscope:qwen3-max"
 
 
 @pytest.mark.asyncio
@@ -918,17 +931,16 @@ async def test_multiline_prompt_sends_full_text():
 
 
 @pytest.mark.asyncio
-async def test_model_command_switches_without_chat_turn():
-    transport = FakeTransport()
+async def test_model_command_is_forwarded_to_agent():
+    """paw no longer manages models — /model is QwenPaw's, so it's forwarded."""
+    transport = QuietTransport()
     app = PawApp(transport)
     async with app.run_test() as pilot:
         await pilot.pause()
-        prompt = app.query_one("#prompt")
-        prompt.value = "/model dashscope:qwen-max"
+        app.query_one("#prompt").value = "/model dashscope:qwen-max"
         await pilot.press("enter")
         await pilot.pause()
-        assert transport.models == ["dashscope:qwen-max"]
-        assert transport.sent == []
+        assert transport.sent == ["/model dashscope:qwen-max"]
 
 
 @pytest.mark.asyncio

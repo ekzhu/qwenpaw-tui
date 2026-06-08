@@ -3,14 +3,9 @@
 
 from __future__ import annotations
 
-import os
-import sys
-
 from click.testing import CliRunner
 
 from paw.cli import main
-
-FAKE = os.path.join(os.path.dirname(__file__), "_fake_acp_agent.py")
 
 
 def test_help():
@@ -24,11 +19,3 @@ def test_version():
     result = CliRunner().invoke(main, ["--version"])
     assert result.exit_code == 0
     assert "paw" in result.output
-
-
-def test_oneshot_against_fake_agent():
-    # Drive the real transport against the fake ACP agent via --agent-cmd.
-    cmd = f"{sys.executable} {FAKE}"
-    result = CliRunner().invoke(main, ["--agent-cmd", cmd, "-p", "hello"])
-    assert result.exit_code == 0, result.output
-    assert "Hello world" in result.output

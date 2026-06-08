@@ -1,7 +1,7 @@
 [project]
 name = "qwenpaw-tui"
 dynamic = ["version"]
-description = "A terminal chat UI for QwenPaw — drive a local or bundled QwenPaw agent over ACP."
+description = "A terminal chat UI for QwenPaw — drive an existing QwenPaw installation over ACP."
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
 license = { text = "MIT" }
@@ -23,9 +23,6 @@ Repository = "https://github.com/ekzhu/paw"
 paw = "paw.cli:main"
 
 [project.optional-dependencies]
-# `pip install qwenpaw-tui[bundled]` ships QwenPaw in the same environment, so paw can
-# spawn it directly (`python -m qwenpaw acp`) with no separate install.
-bundled = ["qwenpaw>=1.1.10"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",

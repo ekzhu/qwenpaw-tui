@@ -3,14 +3,15 @@
 A terminal chat UI for [QwenPaw](https://github.com/agentscope-ai/QwenPaw).
 
 QwenPaw-TUI is a small, fast [Textual](https://textual.textualize.io/) front-end
-that drives a QwenPaw agent over **ACP** (Agent Client Protocol). It streams
-replies and thinking, renders tool calls as inline panels, handles permission
-prompts, and forwards slash commands (`/model`, `/clear`, `/compact`, …)
-straight to the agent. Its command-line tool is `paw`.
+for an **existing** QwenPaw installation. It spawns `qwenpaw acp` and drives it
+over **ACP** (Agent Client Protocol) — streaming replies and thinking, rendering
+tool calls as inline panels, handling permission prompts, and forwarding slash
+commands (`/clear`, `/compact`, …) straight to the agent. Its command-line
+tool is `paw`.
 
-It primarily speaks ACP, so it stays light and is released independently of
-QwenPaw. When QwenPaw is importable in the same environment, the TUI can also
-read its provider catalog and save provider keys directly from `/providers`.
+It only speaks ACP and never imports QwenPaw, so it stays light and ships
+independently. Everything else — provider keys, model selection, memory,
+tools — lives in QwenPaw; paw just drives the agent you've already configured.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="QwenPaw-TUI screenshot" width="760">
@@ -18,45 +19,46 @@ read its provider catalog and save provider keys directly from `/providers`.
 
 ## Install
 
-**Light** — you already have (or will install) QwenPaw:
+Install **QwenPaw first** (see the
+[QwenPaw](https://github.com/agentscope-ai/QwenPaw) docs), then install the UI:
 
 ```bash
-pip install qwenpaw-tui   # expects `qwenpaw` on PATH or in the same env
+pip install qwenpaw-tui   # finds `qwenpaw` on your PATH
 ```
 
-**Bundled** — install QwenPaw alongside QwenPaw-TUI in one go:
-
-```bash
-pip install "qwenpaw-tui[bundled]"   # pulls qwenpaw too; works with no separate install
-```
+paw does **not** bundle or install QwenPaw, so there's nothing to conflict
+with your existing setup — it just drives whatever `qwenpaw` is on your `PATH`
+(or an explicit `--agent-cmd`).
 
 ## Usage
 
 ```bash
-paw                              # interactive chat with a local/bundled QwenPaw
+paw                              # interactive chat with your QwenPaw
 paw --agent writer               # pick a specific agent
-paw -p "what's on my calendar?"  # one-shot: print the answer and exit
-
 paw --agent-cmd "qwenpaw acp"    # drive an explicit ACP command
 ```
+
+For non-interactive / one-shot use, run QwenPaw directly: `qwenpaw chat`.
 
 Inside the chat: `enter` sends, `shift+enter` inserts a newline, `esc`
 interrupts the current turn, `ctrl+r` runs voice input, and `ctrl+c` quits.
 
-Type `/` to open an overlay suggestion list. It includes local TUI commands,
+Type `/` to open an overlay suggestion list. It includes paw's own commands,
 QwenPaw commands advertised over ACP, and argument completions such as
-`/theme cyberpunk` or `/model dashscope:qwen3-max`. Use `up`/`down` to pick,
-`tab` or `enter` to insert a highlighted suggestion, and `esc` to dismiss.
-Once an exact full command is typed, `enter` submits it.
+`/theme cyberpunk`. Use `up`/`down` to pick, `tab` or `enter` to insert a
+highlighted suggestion, and `esc` to dismiss. Once an exact full command is
+typed, `enter` submits it.
 
 Useful local commands:
 
-- `/model` opens the provider/model picker.
-- `/providers` saves provider API keys from the TUI when QwenPaw is importable.
 - `/theme` opens the theme gallery; `/theme <prompt>` generates a persistent
   vibe from your words.
 - `/voice` inserts dictated text from `PAW_VOICE_COMMAND`.
 - `/inspect` toggles between friendly chat and deeper tool/thought inspection.
+
+Model and provider commands (e.g. `/model`) are QwenPaw's — paw forwards them
+to the agent. Configure providers and models with QwenPaw's own tools
+(`qwenpaw models config-key`, `qwenpaw models set-llm`).
 
 Pasting a file path or data URL attaches it to the prompt. Pasting long text
 stores it as a temporary attachment and inserts a reference, keeping the input
@@ -67,9 +69,9 @@ usable.
 `paw` resolves the agent to drive in this order:
 
 1. `--agent-cmd "<command>"` — used verbatim.
-2. **Bundled** — if `qwenpaw` is importable in paw's environment
-   (`paw[bundled]`), runs `python -m qwenpaw acp`.
-3. **PATH** — runs `qwenpaw acp`.
+2. **PATH** — runs `qwenpaw acp`.
+
+If QwenPaw isn't on your `PATH`, install it first or pass `--agent-cmd`.
 
 ## How it works
 

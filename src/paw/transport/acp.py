@@ -421,13 +421,6 @@ class AcpTransport:
     ) -> None:
         self._client.resolve(request_id, option_id)
 
-    async def set_model(self, model_id: str) -> None:
-        if self._conn is None or self._session_id is None:
-            return
-        await self._conn.set_session_model(
-            model_id=model_id, session_id=self._session_id
-        )
-
     async def events(self) -> AsyncIterator[TuiEvent]:
         while True:
             item = await self._queue.get()

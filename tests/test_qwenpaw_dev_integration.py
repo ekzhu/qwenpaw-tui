@@ -233,7 +233,8 @@ async def _started_transport(
     connected = await asyncio.wait_for(transport.start(), timeout=120)
     assert isinstance(connected, Connected)
     assert connected.session_id
-    await transport.set_model(case.model_spec)
+    # The model is already activated in QwenPaw's config by _seed_provider;
+    # paw no longer switches models over ACP.
     return transport
 
 
