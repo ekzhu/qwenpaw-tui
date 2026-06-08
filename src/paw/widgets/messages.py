@@ -140,71 +140,20 @@ class WelcomeMessage(Static):
 
     def _render_pixel_rows(self) -> list[Text]:
         rows: list[Text] = []
-        cells = self._shaded_cells()
-        for index, row_cells in enumerate(cells):
+        for index, row in enumerate(self._LOGO_PIXELS):
             line = Text()
             base = self._gradient_color(index)
-            for kind in row_cells:
-                if kind == "space":
+            for ch in row:
+                if ch == " ":
                     line.append(" ")
-                elif kind == "dot":
+                elif ch == "O":
                     line.append("█", style=_bright_dot_hex(base))
-                elif kind == "hi":
-                    # Top / left edge catches the light.
-                    line.append("█", style=_mix_hex(base, "#ffffff", 0.34))
-                elif kind == "sh":
-                    # Bottom / right edge falls into shadow.
-                    line.append("█", style=_mix_hex(base, "#0a1018", 0.55))
                 else:
                     line.append("█", style=base)
             rows.append(line)
-            if index + 1 < len(cells):
+            if index + 1 < len(self._LOGO_PIXELS):
                 line.append("\n")
         return rows
-
-    def _shaded_cells(self) -> list[list[str]]:
-        """Classify every logo cell for bevelled (embossed) shading.
-
-        The shade is derived from each block's neighbours: a block exposed at
-        the top/left reads as a highlight, one exposed at the bottom/right as a
-        shadow, and a fully enclosed block as the base tone. Doing it from the
-        geometry shades every letter the same way, so the whole word is
-        consistently 3-D without hand-drawing each one. Cached, since the shape
-        never changes (only the animated gradient colour does).
-        """
-        cached = getattr(self, "_cells_cache", None)
-        if cached is not None:
-            return cached
-        grid = self._LOGO_PIXELS
-
-        def solid(r: int, c: int) -> bool:
-            return (
-                0 <= r < len(grid)
-                and 0 <= c < len(grid[r])
-                and grid[r][c] in "█O"
-            )
-
-        cells: list[list[str]] = []
-        for r, row in enumerate(grid):
-            row_cells: list[str] = []
-            for c, ch in enumerate(row):
-                if ch == " ":
-                    row_cells.append("space")
-                elif ch == "O":
-                    row_cells.append("dot")
-                else:
-                    score = (
-                        (not solid(r - 1, c))
-                        + (not solid(r, c - 1))
-                        - (not solid(r + 1, c))
-                        - (not solid(r, c + 1))
-                    )
-                    row_cells.append(
-                        "hi" if score > 0 else "sh" if score < 0 else "base"
-                    )
-            cells.append(row_cells)
-        self._cells_cache = cells
-        return cells
 
     def _gradient_color(self, row_index: int) -> str:
         stops = self._gradient_stops

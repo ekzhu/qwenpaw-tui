@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import binascii
 import json
@@ -146,7 +145,6 @@ class PawApp(App):
         # input bar — the glyph was unfamiliar to most users.
         Binding("ctrl+t", "toggle_tools", "Hide/show tools", show=False),
         Binding("ctrl+i", "toggle_inspection", "Inspect", show=True),
-        Binding("ctrl+r", "voice_input", "Voice", show=True),
         Binding("ctrl+c", "quit", "Quit", show=True, priority=True),
         Binding("ctrl+q", "quit", "Quit", show=False, priority=True),
     ]
@@ -213,7 +211,7 @@ class PawApp(App):
             placeholder=(
                 "type a message  "
                 "(/ commands · enter send/queue · shift+enter newline · "
-                "paste files/long text · ctrl+r voice)"
+                "paste files/long text)"
             ),
             id="prompt",
             show_line_numbers=False,
@@ -422,9 +420,6 @@ class PawApp(App):
         mode = "inspection" if self._inspection_mode else "friendly"
         self.notify(f"{mode} mode", timeout=2)
 
-    async def action_voice_input(self) -> None:
-        await self._capture_voice()
-
     async def action_quit(self) -> None:
         try:
             await self._transport.close()
@@ -438,7 +433,7 @@ class PawApp(App):
                 await self._mount(
                     InfoMessage(
                         "Try /theme <prompt> to personalize the background, "
-                        "/inspect for details, or /voice. Model and provider "
+                        "or /inspect for details. Model and provider "
                         "commands (e.g. /model) are handled by QwenPaw."
                     )
                 )
@@ -446,8 +441,6 @@ class PawApp(App):
                 await self._handle_theme_command(rest.strip())
             case "/inspect":
                 self.action_toggle_inspection()
-            case "/voice":
-                await self._capture_voice()
             case _:
                 # Everything else (including QwenPaw's own slash commands such
                 # as /model and /clear) is forwarded to the agent.
@@ -520,59 +513,6 @@ class PawApp(App):
             )
             return f"[pasted text: {path}]"
         return None
-
-    async def _capture_voice(self) -> None:
-        command = os.getenv("PAW_VOICE_COMMAND", "").strip()
-        if not command:
-            await self._mount(
-                InfoMessage(
-                    "Voice input is ready for a local transcriber. Set "
-                    "PAW_VOICE_COMMAND to a command that records/transcribes "
-                    "and prints text; ctrl+r inserts its output.",
-                    level="warn",
-                )
-            )
-            return
-        try:
-            parts = shlex.split(command)
-        except ValueError as exc:
-            await self._mount(ErrorMessage(f"voice command is invalid: {exc}"))
-            return
-        if not parts:
-            return
-        self._status().set(state="listening")
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                *parts,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), 120)
-        except Exception as exc:  # noqa: BLE001
-            self._status().set(state=self._current_work_state())
-            await self._mount(ErrorMessage(f"voice input failed: {exc}"))
-            return
-        self._status().set(state=self._current_work_state())
-        if proc.returncode:
-            message = stderr.decode(errors="replace").strip()
-            await self._mount(
-                ErrorMessage(
-                    message or f"voice command exited {proc.returncode}"
-                )
-            )
-            return
-        transcript = stdout.decode(errors="replace").strip()
-        if not transcript:
-            await self._mount(
-                InfoMessage("No voice text captured.", level="warn")
-            )
-            return
-        prompt = self.query_one("#prompt", PromptInput)
-        prefix = (
-            "\n" if prompt.value and not prompt.value.endswith("\n") else ""
-        )
-        prompt.insert(prefix + transcript)
-        prompt.focus()
 
     def _resize_prompt(self, value: str) -> None:
         prompt = self.query_one("#prompt", PromptInput)
@@ -681,11 +621,16 @@ class PawApp(App):
         if isinstance(event, TextDelta):
             self._mark_backend_update()
             await self._ensure_turn_label()
-            # The visible answer beginning means thinking is done; drop the
-            # lane so reasoning that resumes later starts a fresh block.
+            # The visible answer beginning means thinking is done; freeze the
+            # thought lane and its activity row (otherwise the row keeps
+            # animating "thinking" while the answer streams) and drop both so
+            # reasoning that resumes later starts a fresh block.
             if self._thought is not None:
                 self._thought.done()
                 self._thought = None
+            if self._activity is not None:
+                self._activity.done()
+                self._activity = None
             if self._assistant is None:
                 self._assistant = AssistantMessage()
                 await self._mount(self._assistant)
@@ -894,7 +839,6 @@ def _local_commands() -> list[SlashCommand]:
     commands = [
         SlashCommand("help", "show QwenPaw TUI shortcuts"),
         SlashCommand("theme", "open theme gallery or apply a vibe"),
-        SlashCommand("voice", "dictate into the prompt"),
         SlashCommand("inspect", "toggle deeper thought/tool detail"),
     ]
     commands.extend(

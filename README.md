@@ -41,7 +41,7 @@ paw --agent-cmd "qwenpaw acp"    # drive an explicit ACP command
 For non-interactive / one-shot use, run QwenPaw directly: `qwenpaw chat`.
 
 Inside the chat: `enter` sends, `shift+enter` inserts a newline, `esc`
-interrupts the current turn, `ctrl+r` runs voice input, and `ctrl+c` quits.
+interrupts the current turn, and `ctrl+c` quits.
 
 Type `/` to open an overlay suggestion list. It includes paw's own commands,
 QwenPaw commands advertised over ACP, and argument completions such as
@@ -53,7 +53,6 @@ Useful local commands:
 
 - `/theme` opens the theme gallery; `/theme <prompt>` generates a persistent
   vibe from your words.
-- `/voice` inserts dictated text from `PAW_VOICE_COMMAND`.
 - `/inspect` toggles between friendly chat and deeper tool/thought inspection.
 
 Model and provider commands (e.g. `/model`) are QwenPaw's — paw forwards them

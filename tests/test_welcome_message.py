@@ -47,8 +47,20 @@ def test_welcome_logo_dots_are_brighter_than_current_letter_color():
         )
 
 
-def test_welcome_logo_is_embossed_with_highlight_and_shadow():
-    """Block letters carry top/left highlight and bottom/right shadow cells."""
+def test_welcome_logo_rows_use_a_single_flat_color():
+    """No per-cell emboss: each row's letter blocks share one gradient color.
+
+    The old bevel shading tinted nearly every block lighter/darker, which read
+    as grainy "low-resolution" noise on a 6-row block font. The blocks in a row
+    should now all carry that row's flat gradient tone (only the eye dots, which
+    are deliberately brightened, may differ).
+    """
     welcome = WelcomeMessage(("#071b2c", "#101f3c", "#163857"))
-    kinds = {kind for row in welcome._shaded_cells() for kind in row}
-    assert {"hi", "sh", "base"} <= kinds
+    # Row 1 ("███   ███ ...") is all letter strokes, no dots.
+    row = welcome._render_pixel_rows()[1]
+    block_colors = {
+        str(span.style)
+        for span in row.spans
+        if row.plain[span.start : span.end] == "█"
+    }
+    assert block_colors == {welcome._gradient_color(1)}

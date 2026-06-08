@@ -449,6 +449,27 @@ async def test_friendly_mode_collapses_tool_chain_to_one_activity_line():
 
 
 @pytest.mark.asyncio
+async def test_activity_line_stops_thinking_when_answer_streams():
+    transport = FakeTransport()
+    app = PawApp(transport)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app._dispatch(ThoughtDelta("pondering"))
+        await pilot.pause()
+        activity = app.query(ActivityLine).first()
+        assert "thinking" in activity.content.plain
+
+        # Once the visible answer begins, the activity row must stop animating
+        # "thinking" — the thought chain is complete.
+        await app._dispatch(TextDelta("Here is the answer."))
+        await pilot.pause()
+        assert "thinking" not in activity.content.plain
+        assert "thought complete" in activity.content.plain
+        # The reference is dropped so resumed reasoning starts a fresh line.
+        assert app._activity is None
+
+
+@pytest.mark.asyncio
 async def test_permission_modal_resolves():
     transport = FakeTransport()
     app = PawApp(transport)
@@ -502,7 +523,7 @@ async def test_slash_command_suggestions():
         assert menu.display
         assert menu.option_count >= 3
         command_names = [command.name for command in app._suggester._commands]
-        assert {"model", "agent", "clear", "theme", "voice"}.issubset(
+        assert {"model", "agent", "clear", "theme"}.issubset(
             command_names
         )
 
@@ -995,18 +1016,6 @@ async def test_embedded_escaped_file_path_paste_is_copied(
         path = replacement.rsplit("[attached file: ", 1)[1].removesuffix("]")
         assert path.endswith(".png")
         assert open(path, "rb").read() == b"png"
-
-
-@pytest.mark.asyncio
-async def test_voice_command_inserts_transcript(monkeypatch):
-    monkeypatch.setenv("PAW_VOICE_COMMAND", "printf hello")
-    transport = FakeTransport()
-    app = PawApp(transport)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        await app.action_voice_input()
-        await pilot.pause()
-        assert app.query_one("#prompt").value == "hello"
 
 
 @pytest.mark.asyncio

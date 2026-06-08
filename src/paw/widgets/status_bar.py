@@ -69,7 +69,6 @@ class StatusBar(Static):
             "warming",
             "waiting",
             "thinking",
-            "listening",
             "interrupting",
         }:
             return
@@ -98,7 +97,6 @@ class StatusBar(Static):
             "waiting": "#ffcf6d",
             "ready": "#6dff9d",
             "thinking": "#6db8ff",
-            "listening": "#ff9df0",
             "interrupting": "#ffcf6d",
             "error": "#ff6d6d",
         }.get(self._sb_state, "#8a8a8a")
@@ -141,7 +139,6 @@ class StatusBar(Static):
             "warming",
             "waiting",
             "thinking",
-            "listening",
             "interrupting",
         }:
             glyph = spinner(self._frame)
