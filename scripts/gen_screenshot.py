@@ -103,6 +103,8 @@ async def _main(cols: int, rows: int) -> None:
 
 
 if __name__ == "__main__":
-    cols = int(sys.argv[1]) if len(sys.argv) > 1 else 80
-    rows = int(sys.argv[2]) if len(sys.argv) > 2 else 28
+    # 100x35 fits the whole transcript (logo included) without scrolling and
+    # keeps roughly the original ~1.35 aspect ratio.
+    cols = int(sys.argv[1]) if len(sys.argv) > 1 else 100
+    rows = int(sys.argv[2]) if len(sys.argv) > 2 else 35
     asyncio.run(_main(cols, rows))
