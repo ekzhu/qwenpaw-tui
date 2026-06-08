@@ -113,8 +113,8 @@ class PawApp(App):
     }
     /* One agent label per turn, sitting tight above the activity below it. */
     .agentlabel { height: 1; margin: 0 0 0 1; }
-    /* Tool calls + thinking are Collapsible widgets; transparent with a rounded
-       outline like the other bubbles. */
+    /* Tool calls + thinking are Collapsible widgets; transparent with a
+       rounded outline like the other bubbles. */
     .tool, .msg.thought {
         height: auto; padding: 0; margin: 0 0 1 0;
         background: transparent; border: round $bubble-border;
@@ -571,9 +571,7 @@ class PawApp(App):
             self.query_one("#prompt", PromptInput).focus()
             if session_id is None:
                 return
-            self.run_worker(
-                self._resume_session(session_id), exclusive=False
-            )
+            self.run_worker(self._resume_session(session_id), exclusive=False)
 
         await self.push_screen(SessionPicker(sessions), callback=_on_pick)
 
@@ -689,7 +687,9 @@ class PawApp(App):
         )
         variables.update(
             {
-                "bubble-border": mix_hex(mix_hex(screen, chrome, 0.55), "#ffffff", 0.12),
+                "bubble-border": mix_hex(
+                    mix_hex(screen, chrome, 0.55), "#ffffff", 0.12
+                ),
                 "bubble-user-border": mix_hex(
                     mix_hex(prompt_bg, chrome, 0.7), "#ffffff", 0.16
                 ),

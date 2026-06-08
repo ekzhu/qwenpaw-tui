@@ -52,8 +52,8 @@ def test_welcome_logo_rows_use_a_single_flat_color():
 
     The old bevel shading tinted nearly every block lighter/darker, which read
     as grainy "low-resolution" noise on a 6-row block font. The blocks in a row
-    should now all carry that row's flat gradient tone (only the eye dots, which
-    are deliberately brightened, may differ).
+    should now all carry that row's flat gradient tone (only the eye dots,
+    which are deliberately brightened, may differ).
     """
     welcome = WelcomeMessage(("#071b2c", "#101f3c", "#163857"))
     # Row 1 ("███   ███ ...") is all letter strokes, no dots.

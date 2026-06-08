@@ -104,7 +104,8 @@ class StatusBar(Static):
         line = Text()
         # Version badge — top-left (replaces the old "paw" badge).
         line.append(
-            f" QwenPaw {self._sb_qwenpaw_version}  TUI {self._sb_tui_version} ",
+            f" QwenPaw {self._sb_qwenpaw_version}  "
+            f"TUI {self._sb_tui_version} ",
             style="bold on #2a2a3a",
         )
         line.append("  agent:", style="#8a8a8a")

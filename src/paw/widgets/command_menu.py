@@ -4,8 +4,8 @@ filtered dropdown list.
 
 The agent advertises its commands over ACP (``available_commands_update``);
 :class:`CommandSuggester` drives the single inline ghost completion on the
-``TextArea`` and :class:`CommandMenu` renders the navigable dropdown. Both share
-the same command list, set via :meth:`set_commands`.
+``TextArea`` and :class:`CommandMenu` renders the navigable dropdown. Both
+share the same command list, set via :meth:`set_commands`.
 """
 
 from __future__ import annotations

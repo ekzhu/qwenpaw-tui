@@ -66,7 +66,7 @@ class AgentLabel(Static):
 
 
 class WelcomeMessage(Static):
-    """Startup greeting rendered as embossed terminal pixels (static colour)."""
+    """Startup greeting rendered as embossed terminal pixels (static)."""
 
     _LOGO_PIXELS = (
         " ███████                              ████████    O O O",
@@ -77,6 +77,7 @@ class WelcomeMessage(Static):
         " ███████   ███ ███   ██████  ███  ███ ███        █████ ██  ███ ███",
         "     ████",
     )
+
     def __init__(
         self,
         palette: tuple[str, str, str] | None = None,
@@ -94,9 +95,7 @@ class WelcomeMessage(Static):
         )
         if palette is not None:
             self._set_palette_colors(palette)
-        super().__init__(
-            self._render_body(), classes="msg welcome"
-        )
+        super().__init__(self._render_body(), classes="msg welcome")
 
     def set_palette(
         self, palette: tuple[str, str, str], accent: str | None = None

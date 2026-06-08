@@ -265,9 +265,9 @@ async def test_message_bubbles_are_transparent():
             app.query(ToolPanel).first(),
         ]
         for bubble in bubbles:
-            assert bubble.styles.background.a == 0, (
-                f"{type(bubble).__name__} background is not transparent"
-            )
+            assert (
+                bubble.styles.background.a == 0
+            ), f"{type(bubble).__name__} background is not transparent"
 
 
 @pytest.mark.asyncio
@@ -550,9 +550,7 @@ async def test_slash_command_suggestions():
         assert menu.display
         assert menu.option_count >= 3
         command_names = [command.name for command in app._suggester._commands]
-        assert {"model", "agent", "clear", "theme"}.issubset(
-            command_names
-        )
+        assert {"model", "agent", "clear", "theme"}.issubset(command_names)
 
         # Inline ghost completion offers the top match.
         assert await app._suggester.get_suggestion("/mod") == "/model"
@@ -686,9 +684,7 @@ async def test_resume_with_no_sessions_shows_info():
         await pilot.press("enter")
         await pilot.pause()
         assert not isinstance(app.screen, SessionPicker)
-        infos = [
-            i.content.plain for i in app.query(InfoMessage)
-        ]
+        infos = [i.content.plain for i in app.query(InfoMessage)]
         assert any("No previous sessions yet" in text for text in infos)
         assert transport.sent == []  # never forwarded to the agent
 
@@ -800,7 +796,9 @@ async def test_resume_autosuggest_lists_recent_ten():
     transport = FakeTransport()
     # 12 sessions; only the most recent 10 should become suggestions.
     transport.sessions = [
-        SessionSummary(session_id=f"{i:02d}cdef00" + "0" * 24, title=f"Chat {i}")
+        SessionSummary(
+            session_id=f"{i:02d}cdef00" + "0" * 24, title=f"Chat {i}"
+        )
         for i in range(12)
     ]
     app = PawApp(transport)
@@ -814,7 +812,9 @@ async def test_resume_autosuggest_lists_recent_ten():
         assert len(resume_entries) == 10  # capped at the 10 most recent
         # Short id + the session title as description, like /theme <id>.
         assert "resume 00cdef00" in names
-        cmd = next(c for c in app._menu._commands if c.name == "resume 00cdef00")
+        cmd = next(
+            c for c in app._menu._commands if c.name == "resume 00cdef00"
+        )
         assert cmd.description == "Chat 0"
 
 
@@ -1161,7 +1161,7 @@ async def test_multiline_prompt_sends_full_text():
 
 @pytest.mark.asyncio
 async def test_model_command_is_forwarded_to_agent():
-    """paw no longer manages models — /model is QwenPaw's, so it's forwarded."""
+    """paw no longer manages models — /model is QwenPaw's, so forwarded."""
     transport = QuietTransport()
     app = PawApp(transport)
     async with app.run_test() as pilot:

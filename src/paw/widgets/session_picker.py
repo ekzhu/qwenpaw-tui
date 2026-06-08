@@ -86,9 +86,7 @@ class SessionPicker(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
         with Vertical(id="session-modal"):
             yield Static("Resume a previous session", id="session-title")
-            yield Input(
-                placeholder="Search by title", id="session-search"
-            )
+            yield Input(placeholder="Search by title", id="session-search")
             yield ListView(*self._session_items(), id="session-list")
             yield Static(
                 "Enter resumes the highlighted session. Esc cancels.",

@@ -98,7 +98,11 @@ class FakeAgent(Agent):
         )
 
     async def load_session(
-        self, cwd, session_id, additional_directories=None, mcp_servers=None,
+        self,
+        cwd,
+        session_id,
+        additional_directories=None,
+        mcp_servers=None,
         **kw,
     ):  # noqa: ANN001
         for role, text in _PAST_HISTORY:
