@@ -25,6 +25,17 @@ class ThemeInfo:
 
 THEME_GALLERY: tuple[ThemeInfo, ...] = (
     ThemeInfo(
+        "original",
+        "Original",
+        "🐾",
+        "original",
+        # Warm, dark take on QwenPaw's console palette (brand orange #ff7f16).
+        "#1d1308",
+        "#2c1d0e",
+        "#5a3614",
+        "#ff7f16",
+    ),
+    ThemeInfo(
         "funky",
         "Funky Paw Rave",
         "🪩",
@@ -127,13 +138,22 @@ def find_theme(value: str) -> ThemeInfo | None:
     return None
 
 
-def palette_for_prompt(prompt: str) -> tuple[str, str, str]:
+def _resolve_theme(prompt: str) -> ThemeInfo:
+    """Map any prompt to a theme: an exact match, else a stable hash pick."""
     theme = find_theme(prompt)
     if theme is not None:
-        return theme.palette
-    palettes = tuple(theme.palette for theme in THEME_GALLERY)
-    index = sum(ord(ch) for ch in prompt) % len(palettes)
-    return palettes[index]
+        return theme
+    index = sum(ord(ch) for ch in prompt) % len(THEME_GALLERY)
+    return THEME_GALLERY[index]
+
+
+def palette_for_prompt(prompt: str) -> tuple[str, str, str]:
+    return _resolve_theme(prompt).palette
+
+
+def accent_for_prompt(prompt: str) -> str:
+    """The theme's bright accent — used to colour the welcome logo."""
+    return _resolve_theme(prompt).accent
 
 
 def mix_hex(left: str, right: str, amount: float) -> str:

@@ -78,11 +78,14 @@ class WelcomeMessage(Static):
         "     ████",
     )
     def __init__(
-        self, palette: tuple[str, str, str] | None = None
+        self,
+        palette: tuple[str, str, str] | None = None,
+        accent: str | None = None,
     ) -> None:
         # ``_frame`` is fixed at 0: the logo colour is static (no animation),
         # so the gradient is a fixed vertical wash with the embossed shading.
         self._frame = 0
+        self._accent = accent
         self._gradient_stops = (
             "#bfe1ff",
             "#8fd7ff",
@@ -95,12 +98,29 @@ class WelcomeMessage(Static):
             self._render_body(), classes="msg welcome"
         )
 
-    def set_palette(self, palette: tuple[str, str, str]) -> None:
+    def set_palette(
+        self, palette: tuple[str, str, str], accent: str | None = None
+    ) -> None:
+        if accent is not None:
+            self._accent = accent
         self._set_palette_colors(palette)
         self.update(self._render_body())
 
     def _set_palette_colors(self, palette: tuple[str, str, str]) -> None:
         screen, prompt_bg, chrome = palette
+        if self._accent:
+            # Brand-coloured logo: a vertical gradient built around the theme
+            # accent (e.g. QwenPaw orange), kept saturated rather than washed
+            # out so the wordmark reads as the brand colour.
+            accent = self._accent
+            deep = _mix_hex(accent, screen, 0.45)
+            self._gradient_stops = (
+                _mix_hex(accent, "#ffffff", 0.42),
+                accent,
+                _mix_hex(accent, deep, 0.5),
+                _mix_hex(accent, "#ffd08a", 0.5),
+            )
+            return
         cool = _mix_hex(chrome, "#ffffff", 0.62)
         warm = _mix_hex(prompt_bg, "#ffd08a", 0.46)
         bright = _mix_hex(prompt_bg, "#ffffff", 0.56)

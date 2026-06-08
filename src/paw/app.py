@@ -52,6 +52,7 @@ from .providers import (
 from .themes import (
     THEME_GALLERY,
     ThemeInfo,
+    accent_for_prompt,
     find_theme,
     mix_hex,
     palette_for_prompt,
@@ -228,7 +229,10 @@ class PawApp(App):
         self._status().set(agent=self._agent)
         self._apply_theme_prompt(self._theme_prompt, notify=False)
         await self._mount(
-            WelcomeMessage(palette_for_prompt(self._theme_prompt))
+            WelcomeMessage(
+                palette_for_prompt(self._theme_prompt),
+                accent_for_prompt(self._theme_prompt),
+            )
         )
         asyncio.create_task(self._refresh_providers())
         self._consume()
@@ -700,8 +704,8 @@ class PawApp(App):
         try:
             data = json.loads(self._theme_path().read_text(encoding="utf-8"))
         except Exception:  # noqa: BLE001
-            return os.getenv("PAW_BACKGROUND_PROMPT", "aurora garden")
-        return str(data.get("prompt") or "aurora garden")
+            return os.getenv("PAW_BACKGROUND_PROMPT", "original")
+        return str(data.get("prompt") or "original")
 
     def get_css_variables(self) -> dict[str, str]:
         """Expose palette-derived bubble outline colours to the stylesheet.
@@ -712,7 +716,7 @@ class PawApp(App):
         """
         variables = super().get_css_variables()
         screen, prompt_bg, chrome = palette_for_prompt(
-            getattr(self, "_theme_prompt", "") or "aurora garden"
+            getattr(self, "_theme_prompt", "") or "original"
         )
         variables.update(
             {
@@ -736,7 +740,7 @@ class PawApp(App):
         self.query_one("#prompt", PromptInput).styles.background = colors[1]
         self.query_one(StatusBar).styles.background = colors[2]
         for welcome in self.query(WelcomeMessage):
-            welcome.set_palette(colors)
+            welcome.set_palette(colors, accent_for_prompt(prompt))
         try:
             self._theme_path().write_text(
                 json.dumps({"prompt": prompt}), encoding="utf-8"
